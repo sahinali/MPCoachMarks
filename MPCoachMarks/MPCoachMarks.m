@@ -12,11 +12,12 @@
 static const CGFloat kAnimationDuration = 0.3f;
 static const CGFloat kCutoutRadius = 5.0f;
 static const CGFloat kMaxLblWidth = 230.0f;
-static const CGFloat kLblSpacing = 35.0f;
+static const CGFloat kLblSpacing = 0.0f;
 static const CGFloat kLabelMargin = 5.0f;
 static const CGFloat kMaskAlpha = 0.75f;
 static const BOOL kEnableContinueLabel = YES;
 static const BOOL kEnableSkipButton = YES;
+
 
 @implementation MPCoachMarks {
     CAShapeLayer *mask;
@@ -82,15 +83,15 @@ static const BOOL kEnableSkipButton = YES;
     self.enableContinueLabel = kEnableContinueLabel;
     self.enableSkipButton = kEnableSkipButton;
     
+    
     // Shape layer mask
     mask = [CAShapeLayer layer];
     [mask setFillRule:kCAFillRuleEvenOdd];
     [mask setFillColor:[[UIColor colorWithHue:0.0f saturation:0.0f brightness:0.0f alpha:kMaskAlpha] CGColor]];
     [self.layer addSublayer:mask];
     
-    // Capture touches
-    UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(userDidTap:)];
-    [self addGestureRecognizer:tapGestureRecognizer];
+    
+    
     
     // Captions
     self.lblCaption = [[UILabel alloc] initWithFrame:(CGRect){{0.0f, 0.0f}, {self.maxLblWidth, 0.0f}}];
@@ -104,7 +105,7 @@ static const BOOL kEnableSkipButton = YES;
     [self addSubview:self.lblCaption];
     
     //Location Position
-    self.continueLocation = LOCATION_BOTTOM;
+    self.continueLocation = LOCATION_TOP;
     
     // Hide until unvoked
     self.hidden = YES;
@@ -194,8 +195,22 @@ static const BOOL kEnableSkipButton = YES;
 }
 
 - (void)handleSingleTap:(UITapGestureRecognizer *)recognizer {
-    [self.delegate coachMarksViewDidClicked:self atIndex:markIndex];
-    [self cleanup];
+    //    [self.delegate coachMarksViewDidClicked:self atIndex:markIndex];
+    
+    if ([self.delegate respondsToSelector:@selector(coachMarksViewDidClicked:atIndex:)]) {
+        [self.delegate coachMarksViewDidClicked:self atIndex:markIndex];
+    }
+    
+    //    [self cleanup];
+}
+
+- (void)handleLongPress:(UILongPressGestureRecognizer *)recognizer {
+    
+    
+    if ([self.delegate respondsToSelector:@selector(coachMarksViewLongPressDetected:atIndex:longPress:)]) {
+        [self.delegate coachMarksViewLongPressDetected:self atIndex:markIndex longPress:recognizer];
+    }
+    
 }
 
 - (UIImage*)fetchImage:(NSString*)name {
@@ -241,10 +256,54 @@ static const BOOL kEnableSkipButton = YES;
         [currentView removeFromSuperview];
         currentView = [[UIView alloc] initWithFrame:markRect];
         currentView.backgroundColor = [UIColor clearColor];
-        UITapGestureRecognizer *singleFingerTap =
-        [[UITapGestureRecognizer alloc] initWithTarget:self
-                                                action:@selector(handleSingleTap:)];
-        [currentView addGestureRecognizer:singleFingerTap];
+        
+        
+        UITapGestureRecognizer *tapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(userDidTap:)];
+        
+        BOOL tabEnabled = NO;
+        if( [markDef objectForKey:@"didTabEnabled"])
+            tabEnabled = [[markDef objectForKey:@"didTabEnabled"] boolValue];
+        if (tabEnabled) {
+            // Capture touches
+            
+            [self addGestureRecognizer:tapGestureRecognizer];
+        }
+        else {
+            
+            for (UIGestureRecognizer *recognizer in self.gestureRecognizers) {
+                [self removeGestureRecognizer:recognizer];
+            }
+        }
+        
+        
+        // LongPress
+        
+        BOOL checkLongPress = NO;
+        if( [markDef objectForKey:@"checkLongPress"])
+            checkLongPress = [[markDef objectForKey:@"checkLongPress"] boolValue];
+        
+        
+        if (checkLongPress) {
+            
+            UILongPressGestureRecognizer *longPressDetected = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+            
+            //            longPressDetected.delegate = self;
+            [currentView addGestureRecognizer:longPressDetected];
+            
+        }
+        else
+            
+        {
+            UITapGestureRecognizer *singleFingerTap =
+            [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                    action:@selector(handleSingleTap:)];
+            [currentView addGestureRecognizer:singleFingerTap];
+            
+        }
+        
+        //LongPress
+        
+        
         [self addSubview:currentView];
     }
     
@@ -270,18 +329,42 @@ static const BOOL kEnableSkipButton = YES;
         case LABEL_ALIGNMENT_RIGHT:
             x = floorf(self.bounds.size.width - self.lblCaption.frame.size.width - kLabelMargin);
             break;
+            
         case LABEL_ALIGNMENT_LEFT:
             x = kLabelMargin;
             break;
+            
+        case LABEL_ALIGNMENT_RIGHT1:
+            x = markRect.origin.x;
+            break;
+            
         default:
             x = floorf((self.bounds.size.width - self.lblCaption.frame.size.width) / 2.0f);
             break;
     }
     
     switch (labelPosition) {
+            
+        case LABEL_POSITION_CENTER:
+        {
+            y = markRect.origin.y + markRect.size.height/2 - kLabelMargin;
+            //            x = self.bounds.size.width - self.lblCaption.frame.size.width - kLabelMargin - markRect.size.width;
+            if(showArrow) {
+                self.arrowImage = [[UIImageView alloc] initWithImage:[self fetchImage:@"arrow-top"]];
+                CGRect imageViewFrame = self.arrowImage.frame;
+                imageViewFrame.origin.x = x;
+                imageViewFrame.origin.y = y;
+                self.arrowImage.frame = imageViewFrame;
+                y -= (self.arrowImage.frame.size.height + kLabelMargin);
+                [self addSubview:self.arrowImage];
+            }
+        }
+            break;
+            
         case LABEL_POSITION_TOP:
         {
             y = markRect.origin.y - self.lblCaption.frame.size.height - kLabelMargin;
+            //            x = self.bounds.size.width - self.lblCaption.frame.size.width - kLabelMargin - markRect.size.width;
             if(showArrow) {
                 self.arrowImage = [[UIImageView alloc] initWithImage:[self fetchImage:@"arrow-down"]];
                 CGRect imageViewFrame = self.arrowImage.frame;
@@ -317,25 +400,28 @@ static const BOOL kEnableSkipButton = YES;
             }
         }
             break;
-        case LABEL_POSITION_RIGHT_BOTTOM:
-        {
-            y = markRect.origin.y + markRect.size.height + self.lblSpacing;
-            CGFloat bottomY = y + self.lblCaption.frame.size.height + self.lblSpacing;
-            if (bottomY > self.bounds.size.height) {
-                y = markRect.origin.y - self.lblSpacing - self.lblCaption.frame.size.height;
-            }
-            x = markRect.origin.x + markRect.size.width + kLabelMargin;
-            if(showArrow) {
-                self.arrowImage = [[UIImageView alloc] initWithImage:[self fetchImage:@"arrow-top"]];
-                CGRect imageViewFrame = self.arrowImage.frame;
-                imageViewFrame.origin.x = x - markRect.size.width/2 - imageViewFrame.size.width/2;
-                imageViewFrame.origin.y = y - kLabelMargin; //self.lblCaption.frame.size.height/2
-                y += imageViewFrame.size.height/2;
-                self.arrowImage.frame = imageViewFrame;
-                [self addSubview:self.arrowImage];
-            }
-        }
-            break;
+            //        case LABEL_POSITION_RIGHT_BOTTOM:
+            //        {
+            //            y = markRect.origin.y + markRect.size.height + self.lblSpacing;
+            //
+            //
+            //            CGFloat bottomY = y + self.lblCaption.frame.size.height + self.lblSpacing;
+            //            if (bottomY > self.bounds.size.height) {
+            //                y = markRect.origin.y - self.lblSpacing - self.lblCaption.frame.size.height;
+            //            }
+            //            x = markRect.origin.x + markRect.size.width + kLabelMargin;
+            //            if(showArrow) {
+            //                self.arrowImage = [[UIImageView alloc] initWithImage:[self fetchImage:@"arrow-top"]];
+            //                CGRect imageViewFrame = self.arrowImage.frame;
+            //                imageViewFrame.origin.x = x - markRect.size.width/2 - imageViewFrame.size.width/2;
+            //                imageViewFrame.origin.y = y - kLabelMargin; //self.lblCaption.frame.size.height/2
+            //                y += imageViewFrame.size.height/2;
+            //                self.arrowImage.frame = imageViewFrame;
+            //                [self addSubview:self.arrowImage];
+            //            }
+            //
+            //        }
+            //            break;
         default: {
             y = markRect.origin.y + markRect.size.height + self.lblSpacing;
             CGFloat bottomY = y + self.lblCaption.frame.size.height + self.lblSpacing;
@@ -377,8 +463,14 @@ static const BOOL kEnableSkipButton = YES;
     // Animate the cutout
     [self animateCutoutToRect:markRect withShape:shape];
     
-    CGFloat lblContinueWidth = self.enableSkipButton ? (70.0/100.0) * self.bounds.size.width : self.bounds.size.width;
+    CGFloat lblContinueWidth = self.enableSkipButton ? (50.0/100.0) * self.bounds.size.width : self.bounds.size.width;
     CGFloat btnSkipWidth = self.bounds.size.width - lblContinueWidth;
+    
+    if( [markDef objectForKey:@"enableContinueLabel"])
+        self.enableContinueLabel = [[markDef objectForKey:@"enableContinueLabel"] boolValue];
+    
+    if( [markDef objectForKey:@"enableSkipButton"])
+        self.enableSkipButton  = [[markDef objectForKey:@"enableSkipButton"] boolValue];
     
     // Show continue lbl if first mark
     if (self.enableContinueLabel) {
@@ -457,6 +549,24 @@ static const BOOL kEnableSkipButton = YES;
         [self.delegate coachMarksView:self didNavigateToIndex:markIndex];
     }
 }
+
+
+- (void) continueNextStepSet:(Boolean)typeVal
+{
+    self.continueNextStep =typeVal;
+}
+
+- (Boolean) continueNextStepGet
+{
+    return self.continueNextStep;
+}
+
+- (void) coachMarksSet:(NSArray*) newCoachMarks
+{
+    self.coachMarks = newCoachMarks;
+}
+
+
 
 @end
 
