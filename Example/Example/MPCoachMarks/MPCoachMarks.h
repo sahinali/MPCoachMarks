@@ -28,13 +28,13 @@
 #import <UIKit/UIKit.h>
 
 #ifndef MP_WEAK
-    #if __has_feature(objc_arc_weak)
-        #define MP_WEAK weak
-    #elif __has_feature(objc_arc)
-        #define MP_WEAK unsafe_unretained
-    #else
-        #define MP_WEAK assign
-    #endif
+#if __has_feature(objc_arc_weak)
+#define MP_WEAK weak
+#elif __has_feature(objc_arc)
+#define MP_WEAK unsafe_unretained
+#else
+#define MP_WEAK assign
+#endif
 #endif
 
 
@@ -48,6 +48,7 @@ typedef NS_ENUM(NSInteger, LabelAligment) {
     LABEL_ALIGNMENT_CENTER,
     LABEL_ALIGNMENT_LEFT,
     LABEL_ALIGNMENT_RIGHT,
+    LABEL_ALIGNMENT_RIGHT1
 };
 
 typedef NS_ENUM(NSInteger, LabelPosition) {
@@ -55,7 +56,9 @@ typedef NS_ENUM(NSInteger, LabelPosition) {
     LABEL_POSITION_LEFT,
     LABEL_POSITION_TOP,
     LABEL_POSITION_RIGHT,
-    LABEL_POSITION_RIGHT_BOTTOM
+    LABEL_POSITION_RIGHT_BOTTOM,
+    LABEL_POSITION_CENTER
+    
 };
 
 typedef NS_ENUM(NSInteger, ContinueLocation) {
@@ -79,12 +82,19 @@ typedef NS_ENUM(NSInteger, ContinueLocation) {
 @property (nonatomic) CGFloat maxLblWidth;
 @property (nonatomic) CGFloat lblSpacing;
 @property (nonatomic) BOOL enableContinueLabel;
+@property (nonatomic) BOOL continueNextStep;
+
 @property (nonatomic) BOOL enableSkipButton;
 @property (nonatomic) ContinueLocation continueLocation;
 @property (nonatomic, strong) UIImageView *arrowImage;
 
 - (id)initWithFrame:(CGRect)frame coachMarks:(NSArray *)marks;
 - (void)start;
+- (void) continueNextStepSet:(Boolean)typeVal;
+- (Boolean) continueNextStepGet;
+- (void)goToCoachMarkIndexed:(NSUInteger)index;
+- (void) coachMarksSet:(NSArray*) newCoachMarks;
+
 
 @end
 
@@ -96,5 +106,11 @@ typedef NS_ENUM(NSInteger, ContinueLocation) {
 - (void)coachMarksViewWillCleanup:(MPCoachMarks *)coachMarksView;
 - (void)coachMarksViewDidCleanup:(MPCoachMarks *)coachMarksView;
 - (void)coachMarksViewDidClicked:(MPCoachMarks *)coachMarksView atIndex:(NSInteger)index;
+
+- (void)coachMarksViewLongPressDetected:(MPCoachMarks *)coachMarksView atIndex:(NSInteger)index longPress : (UILongPressGestureRecognizer*) gestureRecognizer;
+
+
+
+
 
 @end
